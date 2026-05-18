@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Guest Tool Home</title>
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Guest Tool" />
+        <link rel="manifest" href="manifest.webmanifest" />
+        <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <main class="wrap">
+            <section class="card">
+                <header class="header">
+                    <h1>Guest Tool</h1>
+                    <p class="sub">Use one shared guest list from <code>data/besucherliste.csv</code> to track attendance, checkout, and pizza delivery across both event days.</p>
+                </header>
+
+                <nav class="navGrid">
+                    <a class="navCard" href="food.html">
+                        <h2>🍕 Pizza Tracking</h2>
+                        <p>Mark pizza delivery separately for Saturday and Sunday.</p>
+                    </a>
+
+                    <a class="navCard" href="checkin.html">
+                        <h2>✅ Attendance</h2>
+                        <p>Track both guest check-in and guest checkout from the shared list.</p>
+                    </a>
+                </nav>
+
+                <footer class="footer">Each page saves its own status in the browser while reading the same CSV guest source.</footer>
+            </section>
+
+            <section class="card utilityCard">
+                <header class="header">
+                    <h2>Install And Backup</h2>
+                    <p class="sub">Install this on one phone or tablet, then use backup export if you want a snapshot of all attendance and pizza data.</p>
+                </header>
+
+                <section class="utilityGrid">
+                    <button id="exportStateButton" class="actionButton" type="button">Export App Data</button>
+                    <label class="actionButton secondaryButton" for="importStateInput">Import App Data</label>
+                    <input id="importStateInput" type="file" accept="application/json" hidden />
+                </section>
+
+                <p id="appStatus" class="statusMessage" aria-live="polite"></p>
+            </section>
+        </main>
+        <script type="module" src="./app-init.js"></script>
+    </body>
+</html>

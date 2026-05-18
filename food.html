@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pizza Tracking</title>
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Guest Tool" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <header class="header">
+        <div class="headerTop">
+          <div>
+            <h1>Pizza Tracking</h1>
+            <p class="sub">Loaded from <code>data/besucherliste.csv</code> with separate pizza delivery tracking for Saturday and Sunday.</p>
+          </div>
+          <a class="backLink" href="index.html">← Home</a>
+        </div>
+      </header>
+
+      <section class="controls">
+        <input id="searchInput" class="search" type="text" placeholder="Search guest name..." aria-label="Search guest names" />
+        <div class="stats">
+          <div class="badge">Total Guests: <strong id="totalCount">0</strong></div>
+          <div class="badge">Shown: <strong id="shownCount">0</strong></div>
+          <div class="badge">Pizza Received: <strong id="doneCount">0</strong></div>
+        </div>
+      </section>
+
+      <section id="listHeader" class="listHeader">
+        <div>Guest</div>
+        <div>Status</div>
+      </section>
+
+      <section id="guestList" class="list" aria-live="polite"></section>
+      <p id="emptyState" class="empty">No guests match your search.</p>
+
+      <footer class="footer">
+        State is saved in your browser for this page separately.
+      </footer>
+    </section>
+  </main>
+
+  <script type="module">
+    import { createGuestPage } from './shared-page.js';
+    import { guestList } from './data/guests.js';
+
+    await createGuestPage({
+      guests: guestList,
+      storageKey: 'guest-tool-pizza-v1',
+      fields: [
+        { key: 'pizzaSaturday', label: 'Saturday' },
+        { key: 'pizzaSunday', label: 'Sunday' }
+      ],
+      statusHeaderLabel: 'Pizza Status',
+      isDone: guest => guest.pizzaSaturday || guest.pizzaSunday
+    });
+  </script>
+  <script type="module" src="./app-init.js"></script>
+</body>
+</html>
