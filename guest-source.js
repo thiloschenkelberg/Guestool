@@ -1,4 +1,5 @@
 const GUEST_SOURCE_KEY = 'guest-tool-guest-source-v1';
+const PIZZA_SOURCE_KEY = 'guest-tool-pizza-source-v1';
 
 function parseCsvLine(line) {
   const cells = [];
@@ -41,7 +42,11 @@ function slugify(value) {
     .replace(/(^-|-$)/g, '');
 }
 
-function buildGuestsFromCsv(csvText) {
+function normalizeName(value) {
+  return slugify(value ?? '');
+}
+
+function buildRowsFromCsv(csvText) {
   const lines = csvText
     .split(/\r?\n/)
     .map(line => line.trimEnd())
@@ -53,11 +58,18 @@ function buildGuestsFromCsv(csvText) {
 
   const headers = parseCsvLine(lines[0]);
 
-  return lines
-    .slice(1)
-    .map((line, index) => {
-      const values = parseCsvLine(line);
-      const row = Object.fromEntries(headers.map((header, headerIndex) => [header, values[headerIndex] ?? '']));
+  return lines.slice(1).map((line, index) => {
+    const values = parseCsvLine(line);
+    return {
+      rowIndex: index + 1,
+      row: Object.fromEntries(headers.map((header, headerIndex) => [header, values[headerIndex] ?? '']))
+    };
+  });
+}
+
+function buildGuestsFromRows(rows) {
+  return rows
+    .map(({ rowIndex, row }) => {
       const firstName = row.Vorname ?? '';
       const lastName = row.Nachname ?? '';
       const name = `${firstName} ${lastName}`.trim() || (row.Firma ?? '').trim();
@@ -72,9 +84,135 @@ function buildGuestsFromCsv(csvText) {
         .join(' • ');
 
       return {
-        id: `${index + 1}-${slugify(name)}`,
+        id: `${rowIndex}-${slugify(name)}`,
         name,
         group
+      };
+    })
+    .filter(Boolean);
+}
+
+function parseBooleanLike(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  if (['1', 'true', 'yes', 'y', 'ja', 'x'].includes(normalized)) {
+    return true;
+  }
+
+  if (['0', 'false', 'no', 'n', 'nein', '-'].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
+function firstMatchingValue(row, keys) {
+  const normalizedEntries = Object.entries(row).map(([key, value]) => [normalizeName(key), value]);
+
+  for (const key of keys) {
+    const match = normalizedEntries.find(([normalizedKey]) => normalizedKey === normalizeName(key));
+    if (match && String(match[1] ?? '').trim()) {
+      return String(match[1]).trim();
+    }
+  }
+
+  return '';
+}
+
+function buildPizzaName(row) {
+  const directName = firstMatchingValue(row, [
+    'name',
+    'full name',
+    'full_name',
+    'guest',
+    'gast',
+    'person'
+  ]);
+
+  if (directName) {
+    return directName;
+  }
+
+  const firstName = firstMatchingValue(row, ['vorname', 'first name', 'firstname', 'first_name']);
+  const lastName = firstMatchingValue(row, ['nachname', 'last name', 'lastname', 'last_name']);
+  return `${firstName} ${lastName}`.trim();
+}
+
+function buildPizzaType(row) {
+  const directType = firstMatchingValue(row, [
+    'pizza type',
+    'pizza_type',
+    'pizzatyp',
+    'type',
+    'sorte',
+    'pizza sorte'
+  ]);
+
+  if (directType) {
+    return directType;
+  }
+
+  const pizzaColumn = firstMatchingValue(row, ['pizza', 'pizza status', 'pizza info']);
+  const booleanValue = parseBooleanLike(pizzaColumn);
+
+  if (pizzaColumn && booleanValue === null) {
+    return pizzaColumn;
+  }
+
+  return '';
+}
+
+function buildPizzaEligibility(row, pizzaType) {
+  const explicitEligibility = firstMatchingValue(row, [
+    'gets pizza',
+    'pizza eligible',
+    'eligible',
+    'has pizza',
+    'bekommt pizza',
+    'pizza ja nein'
+  ]);
+
+  const parsedExplicit = parseBooleanLike(explicitEligibility);
+  if (parsedExplicit !== null) {
+    return parsedExplicit;
+  }
+
+  const pizzaColumn = firstMatchingValue(row, ['pizza', 'pizza status', 'pizza info']);
+  const parsedPizzaColumn = parseBooleanLike(pizzaColumn);
+  if (parsedPizzaColumn !== null) {
+    return parsedPizzaColumn;
+  }
+
+  if (pizzaType) {
+    return true;
+  }
+
+  return true;
+}
+
+function buildPizzaEntriesFromRows(rows) {
+  return rows
+    .map(({ rowIndex, row }) => {
+      const name = buildPizzaName(row);
+      if (!name) {
+        return null;
+      }
+
+      const pizzaType = buildPizzaType(row);
+      const getsPizza = buildPizzaEligibility(row, pizzaType);
+
+      return {
+        id: `${rowIndex}-${slugify(name)}`,
+        name,
+        pizzaType,
+        getsPizza
       };
     })
     .filter(Boolean);
@@ -98,44 +236,89 @@ function validateGuestList(guestList) {
   return guestList;
 }
 
+function validatePizzaList(pizzaList) {
+  if (!Array.isArray(pizzaList)) {
+    throw new Error('Pizza list must be an array.');
+  }
+
+  return pizzaList.map((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      throw new Error(`Pizza entry ${index + 1} is invalid.`);
+    }
+
+    if (typeof entry.name !== 'string' || !entry.name.trim()) {
+      throw new Error(`Pizza entry ${index + 1} must include a guest name.`);
+    }
+
+    const parsedEligibility = parseBooleanLike(
+      entry.getsPizza ?? entry.eligible ?? entry.hasPizza ?? entry.pizzaEligible
+    );
+
+    return {
+      id: typeof entry.id === 'string' && entry.id ? entry.id : `${index + 1}-${slugify(entry.name)}`,
+      name: entry.name.trim(),
+      pizzaType: String(entry.pizzaType ?? entry.type ?? '').trim(),
+      getsPizza: parsedEligibility ?? true
+    };
+  });
+}
+
 function parseGuestFileContents(fileName, text) {
   if (fileName.toLowerCase().endsWith('.json')) {
     const parsed = JSON.parse(text);
     return validateGuestList(parsed);
   }
 
-  return buildGuestsFromCsv(text);
+  return buildGuestsFromRows(buildRowsFromCsv(text));
 }
 
-export function saveGuestSource(fileName, text) {
-  const guests = parseGuestFileContents(fileName, text);
+function parsePizzaFileContents(fileName, text) {
+  if (fileName.toLowerCase().endsWith('.json')) {
+    const parsed = JSON.parse(text);
+    return validatePizzaList(parsed);
+  }
+
+  return validatePizzaList(buildPizzaEntriesFromRows(buildRowsFromCsv(text)));
+}
+
+function saveSource(storageKey, fileName, entries, countKey) {
   const payload = {
     fileName,
     savedAt: new Date().toISOString(),
-    guestCount: guests.length,
-    guests
+    [countKey]: entries.length,
+    entries
   };
 
-  localStorage.setItem(GUEST_SOURCE_KEY, JSON.stringify(payload));
+  localStorage.setItem(storageKey, JSON.stringify(payload));
   return payload;
 }
 
-export function loadGuestSource() {
-  const raw = localStorage.getItem(GUEST_SOURCE_KEY);
+function loadSource(storageKey, validator, countKey, entryKey) {
+  const raw = localStorage.getItem(storageKey);
   if (!raw) {
     return null;
   }
 
   try {
     const parsed = JSON.parse(raw);
+    const entries = validator(parsed.entries ?? parsed[entryKey] ?? []);
     return {
       ...parsed,
-      guests: validateGuestList(parsed.guests ?? [])
+      [countKey]: entries.length,
+      entries
     };
   } catch (error) {
-    console.error('Could not parse stored guest source', error);
+    console.error(`Could not parse stored source for ${storageKey}`, error);
     return null;
   }
+}
+
+export function saveGuestSource(fileName, text) {
+  return saveSource(GUEST_SOURCE_KEY, fileName, parseGuestFileContents(fileName, text), 'guestCount');
+}
+
+export function loadGuestSource() {
+  return loadSource(GUEST_SOURCE_KEY, validateGuestList, 'guestCount', 'guests');
 }
 
 export function clearGuestSource() {
@@ -148,5 +331,41 @@ export async function loadGuestsFromDeviceStorage() {
     throw new Error('No guest list has been selected on this device yet.');
   }
 
-  return source.guests;
+  return source.entries;
+}
+
+export function savePizzaSource(fileName, text) {
+  return saveSource(PIZZA_SOURCE_KEY, fileName, parsePizzaFileContents(fileName, text), 'pizzaCount');
+}
+
+export function loadPizzaSource() {
+  return loadSource(PIZZA_SOURCE_KEY, validatePizzaList, 'pizzaCount', 'pizzaEntries');
+}
+
+export function clearPizzaSource() {
+  localStorage.removeItem(PIZZA_SOURCE_KEY);
+}
+
+export async function loadPizzaGuestsFromDeviceStorage() {
+  const pizzaSource = loadPizzaSource();
+  if (!pizzaSource) {
+    throw new Error('No pizza list has been selected on this device yet.');
+  }
+
+  const guestSource = loadGuestSource();
+  const guestsByName = new Map(
+    (guestSource?.entries ?? []).map(guest => [normalizeName(guest.name), guest])
+  );
+
+  return pizzaSource.entries
+    .filter(entry => entry.getsPizza)
+    .map(entry => {
+      const matchedGuest = guestsByName.get(normalizeName(entry.name));
+      return {
+        id: matchedGuest?.id ?? `pizza-${entry.id}`,
+        name: matchedGuest?.name ?? entry.name,
+        group: matchedGuest?.group ?? '',
+        pizzaType: entry.pizzaType
+      };
+    });
 }

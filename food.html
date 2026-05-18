@@ -20,7 +20,7 @@
         <div class="headerTop">
           <div>
             <h1>Pizza Tracking</h1>
-            <p class="sub">Uses the guest list file selected on this device, with separate pizza delivery tracking for Saturday and Sunday.</p>
+            <p class="sub">Uses the pizza list selected on this device and shows only guests who should receive pizza, including their assigned pizza type.</p>
           </div>
           <a class="backLink" href="index.html">← Home</a>
         </div>
@@ -51,10 +51,10 @@
 
   <script type="module">
     import { createGuestPage } from './shared-page.js';
-    import { loadGuestsFromDeviceStorage } from './guest-source.js';
+    import { loadPizzaGuestsFromDeviceStorage } from './guest-source.js';
 
     await createGuestPage({
-      loadGuests: loadGuestsFromDeviceStorage,
+      loadGuests: loadPizzaGuestsFromDeviceStorage,
       storageKey: 'guest-tool-pizza-v1',
       fields: [
         { key: 'pizzaSaturday', label: 'Saturday' },
@@ -62,7 +62,11 @@
       ],
       statusHeaderLabel: 'Pizza Status',
       isDone: guest => guest.pizzaSaturday || guest.pizzaSunday,
-      loadErrorMessage: 'No guest list is loaded on this device yet. Go to Home and choose a CSV or JSON guest list first.'
+      getMetaText: guest => {
+        const details = [guest.pizzaType, guest.group].filter(Boolean);
+        return details.join(' • ') || 'Pizza guest';
+      },
+      loadErrorMessage: 'No pizza list is loaded on this device yet. Go to Home and choose a CSV or JSON pizza list first.'
     });
   </script>
   <script type="module" src="./app-init.js"></script>

@@ -1,4 +1,11 @@
-import { clearGuestSource, loadGuestSource, saveGuestSource } from './guest-source.js';
+import {
+  clearGuestSource,
+  clearPizzaSource,
+  loadGuestSource,
+  loadPizzaSource,
+  saveGuestSource,
+  savePizzaSource
+} from './guest-source.js';
 
 const STORAGE_PREFIX = 'guest-tool-';
 
@@ -36,6 +43,17 @@ function showGuestSourceSummary(message) {
   }
 }
 
+function getPizzaSourceSummaryElement() {
+  return document.getElementById('pizzaSourceSummary');
+}
+
+function showPizzaSourceSummary(message) {
+  const element = getPizzaSourceSummaryElement();
+  if (element) {
+    element.textContent = message;
+  }
+}
+
 function refreshGuestSourceSummary() {
   const source = loadGuestSource();
   if (!source) {
@@ -44,6 +62,16 @@ function refreshGuestSourceSummary() {
   }
 
   showGuestSourceSummary(`Loaded ${source.guestCount} guests from ${source.fileName}. Saved on this device${source.savedAt ? ` on ${new Date(source.savedAt).toLocaleString()}` : ''}.`);
+}
+
+function refreshPizzaSourceSummary() {
+  const source = loadPizzaSource();
+  if (!source) {
+    showPizzaSourceSummary('No pizza list selected on this device yet.');
+    return;
+  }
+
+  showPizzaSourceSummary(`Loaded ${source.pizzaCount} pizza entries from ${source.fileName}. Saved on this device${source.savedAt ? ` on ${new Date(source.savedAt).toLocaleString()}` : ''}.`);
 }
 
 function getStoredAppData() {
@@ -90,6 +118,8 @@ async function importStateBackup(file) {
     }
   });
 
+  refreshGuestSourceSummary();
+  refreshPizzaSourceSummary();
   showStatus('App data imported. Reopen the attendance or pizza page to see the restored state.');
 }
 
@@ -98,6 +128,8 @@ function initBackupControls() {
   const importInput = document.getElementById('importStateInput');
   const guestSourceInput = document.getElementById('guestSourceInput');
   const clearGuestSourceButton = document.getElementById('clearGuestSourceButton');
+  const pizzaSourceInput = document.getElementById('pizzaSourceInput');
+  const clearPizzaSourceButton = document.getElementById('clearPizzaSourceButton');
 
   if (exportButton) {
     exportButton.addEventListener('click', downloadStateBackup);
@@ -145,8 +177,38 @@ function initBackupControls() {
       showStatus('Guest list removed from this device.');
     });
   }
+
+  if (pizzaSourceInput) {
+    pizzaSourceInput.addEventListener('change', async event => {
+      try {
+        const [file] = event.target.files ?? [];
+        if (!file) {
+          return;
+        }
+
+        const text = await file.text();
+        const source = savePizzaSource(file.name, text);
+        refreshPizzaSourceSummary();
+        showStatus(`Pizza list loaded successfully with ${source.pizzaCount} entries.`);
+      } catch (error) {
+        console.error('Pizza source import failed', error);
+        showStatus('Pizza list import failed. Use CSV or JSON with a guest name and, when available, pizza type and eligibility columns.');
+      } finally {
+        event.target.value = '';
+      }
+    });
+  }
+
+  if (clearPizzaSourceButton) {
+    clearPizzaSourceButton.addEventListener('click', () => {
+      clearPizzaSource();
+      refreshPizzaSourceSummary();
+      showStatus('Pizza list removed from this device.');
+    });
+  }
 }
 
 registerServiceWorker();
 initBackupControls();
 refreshGuestSourceSummary();
+refreshPizzaSourceSummary();

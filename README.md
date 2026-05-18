@@ -14,8 +14,10 @@ It supports:
 ## How It Works
 
 - You choose a guest list file directly on the device from the app home page.
-- Supported formats are the existing `besucherliste.csv` style CSV or a JSON guest list export.
+- You also choose a separate pizza list file directly on the device for the pizza page.
+- Supported formats are CSV or JSON.
 - The selected guest list is saved only in the browser storage on that one device.
+- The selected pizza list is saved only in the browser storage on that same device.
 - Attendance and pizza state are also saved in the browser storage on that same device.
 - A service worker caches the app so it keeps working offline after installation.
 
@@ -26,6 +28,7 @@ It supports:
 - `food.html` - pizza page
 - `shared-page.js` - shared list rendering and local state logic
 - `guest-source.js` - guest file parsing and local storage for the selected guest list
+- `guest-source.js` also parses and stores the selected pizza list
 - `app-init.js` - service worker registration and backup import/export
 - `service-worker.js` - offline caching
 - `manifest.webmanifest` - install metadata for Android and iOS home-screen use
@@ -45,8 +48,9 @@ Before going offline:
 
 1. Open the app home page.
 2. Tap `Select Guest List File`.
-3. Choose your CSV or JSON file from the device.
-4. Open the attendance and pizza pages once.
+3. Choose your guest list file.
+4. Choose your pizza list file.
+5. Open the attendance and pizza pages once.
 
 ## Keep Guest Data Out Of Git
 
@@ -62,6 +66,6 @@ That means you can keep `besucherliste.csv` locally in the `data/` folder for te
 On the home page:
 
 - `Export App Data` saves attendance and pizza state as JSON
-- `Import App Data` restores a previously exported backup, including the saved guest list if it was part of the backup
+- `Import App Data` restores a previously exported backup, including the saved guest list and pizza list if they were part of the backup
 
 This is useful before updating the app or as a manual safety backup during the festival.

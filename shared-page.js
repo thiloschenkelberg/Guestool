@@ -127,7 +127,9 @@ export async function createGuestPage(config) {
 
     const meta = document.createElement('div');
     meta.className = 'guestMeta';
-    meta.textContent = guest.group || 'Guest list';
+    meta.textContent = typeof config.getMetaText === 'function'
+      ? config.getMetaText(guest)
+      : (guest.group || 'Guest list');
 
     info.append(name, meta);
 
