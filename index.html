@@ -18,7 +18,7 @@
             <section class="card">
                 <header class="header">
                     <h1>Guest Tool</h1>
-                    <p class="sub">Use one shared guest list from <code>data/besucherliste.csv</code> to track attendance, checkout, and pizza delivery across both event days.</p>
+                    <p class="sub">Load a guest list file directly from this device, then track attendance, checkout, and pizza delivery without publishing guest names online.</p>
                 </header>
 
                 <nav class="navGrid">
@@ -33,21 +33,25 @@
                     </a>
                 </nav>
 
-                <footer class="footer">Each page saves its own status in the browser while reading the same CSV guest source.</footer>
+                <footer class="footer">Guest data and event state are stored only on this device after you import a guest file.</footer>
             </section>
 
             <section class="card utilityCard">
                 <header class="header">
-                    <h2>Install And Backup</h2>
-                    <p class="sub">Install this on one phone or tablet, then use backup export if you want a snapshot of all attendance and pizza data.</p>
+                    <h2>Guest File And Backup</h2>
+                    <p class="sub">Choose a CSV or JSON guest list from the device. The file contents are saved locally in the app so attendance and pizza pages can work offline afterward.</p>
                 </header>
 
                 <section class="utilityGrid">
+                    <label class="actionButton" for="guestSourceInput">Select Guest List File</label>
+                    <input id="guestSourceInput" type="file" accept=".csv,application/json" hidden />
+                    <button id="clearGuestSourceButton" class="actionButton secondaryButton" type="button">Remove Guest List</button>
                     <button id="exportStateButton" class="actionButton" type="button">Export App Data</button>
                     <label class="actionButton secondaryButton" for="importStateInput">Import App Data</label>
                     <input id="importStateInput" type="file" accept="application/json" hidden />
                 </section>
 
+                <p id="guestSourceSummary" class="statusMessage" aria-live="polite"></p>
                 <p id="appStatus" class="statusMessage" aria-live="polite"></p>
             </section>
         </main>

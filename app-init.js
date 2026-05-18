@@ -1,3 +1,5 @@
+import { clearGuestSource, loadGuestSource, saveGuestSource } from './guest-source.js';
+
 const STORAGE_PREFIX = 'guest-tool-';
 
 async function registerServiceWorker() {
@@ -21,6 +23,27 @@ function showStatus(message) {
   if (element) {
     element.textContent = message;
   }
+}
+
+function getGuestSourceSummaryElement() {
+  return document.getElementById('guestSourceSummary');
+}
+
+function showGuestSourceSummary(message) {
+  const element = getGuestSourceSummaryElement();
+  if (element) {
+    element.textContent = message;
+  }
+}
+
+function refreshGuestSourceSummary() {
+  const source = loadGuestSource();
+  if (!source) {
+    showGuestSourceSummary('No guest list selected on this device yet.');
+    return;
+  }
+
+  showGuestSourceSummary(`Loaded ${source.guestCount} guests from ${source.fileName}. Saved on this device${source.savedAt ? ` on ${new Date(source.savedAt).toLocaleString()}` : ''}.`);
 }
 
 function getStoredAppData() {
@@ -73,6 +96,8 @@ async function importStateBackup(file) {
 function initBackupControls() {
   const exportButton = document.getElementById('exportStateButton');
   const importInput = document.getElementById('importStateInput');
+  const guestSourceInput = document.getElementById('guestSourceInput');
+  const clearGuestSourceButton = document.getElementById('clearGuestSourceButton');
 
   if (exportButton) {
     exportButton.addEventListener('click', downloadStateBackup);
@@ -91,7 +116,37 @@ function initBackupControls() {
       }
     });
   }
+
+  if (guestSourceInput) {
+    guestSourceInput.addEventListener('change', async event => {
+      try {
+        const [file] = event.target.files ?? [];
+        if (!file) {
+          return;
+        }
+
+        const text = await file.text();
+        const source = saveGuestSource(file.name, text);
+        refreshGuestSourceSummary();
+        showStatus(`Guest list loaded successfully with ${source.guestCount} guests.`);
+      } catch (error) {
+        console.error('Guest source import failed', error);
+        showStatus('Guest list import failed. Please use a CSV in the Besucherliste format or a JSON guest list.');
+      } finally {
+        event.target.value = '';
+      }
+    });
+  }
+
+  if (clearGuestSourceButton) {
+    clearGuestSourceButton.addEventListener('click', () => {
+      clearGuestSource();
+      refreshGuestSourceSummary();
+      showStatus('Guest list removed from this device.');
+    });
+  }
 }
 
 registerServiceWorker();
 initBackupControls();
+refreshGuestSourceSummary();

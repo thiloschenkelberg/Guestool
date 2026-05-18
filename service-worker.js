@@ -1,4 +1,4 @@
-const CACHE_NAME = 'guest-tool-cache-v2';
+const CACHE_NAME = 'guest-tool-cache-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,8 +6,8 @@ const APP_SHELL = [
   './food.html',
   './styles.css',
   './shared-page.js',
+  './guest-source.js',
   './app-init.js',
-  './data/guests.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
