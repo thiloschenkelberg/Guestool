@@ -1,7 +1,13 @@
 const GUEST_SOURCE_KEY = 'guest-tool-guest-source-v1';
 const PIZZA_SOURCE_KEY = 'guest-tool-pizza-source-v1';
 
-function parseCsvLine(line) {
+function detectCsvDelimiter(line) {
+  const semicolonCount = (line.match(/;/g) ?? []).length;
+  const commaCount = (line.match(/,/g) ?? []).length;
+  return commaCount > semicolonCount ? ',' : ';';
+}
+
+function parseCsvLine(line, delimiter) {
   const cells = [];
   let current = '';
   let inQuotes = false;
@@ -20,7 +26,7 @@ function parseCsvLine(line) {
       continue;
     }
 
-    if (character === ';' && !inQuotes) {
+    if (character === delimiter && !inQuotes) {
       cells.push(current);
       current = '';
       continue;
@@ -56,10 +62,11 @@ function buildRowsFromCsv(csvText) {
     return [];
   }
 
-  const headers = parseCsvLine(lines[0]);
+  const delimiter = detectCsvDelimiter(lines[0]);
+  const headers = parseCsvLine(lines[0], delimiter);
 
   return lines.slice(1).map((line, index) => {
-    const values = parseCsvLine(line);
+    const values = parseCsvLine(line, delimiter);
     return {
       rowIndex: index + 1,
       row: Object.fromEntries(headers.map((header, headerIndex) => [header, values[headerIndex] ?? '']))
@@ -169,6 +176,10 @@ function buildPizzaType(row) {
   return '';
 }
 
+function buildPizzaDayType(row, dayKeys) {
+  return firstMatchingValue(row, dayKeys);
+}
+
 function buildPizzaEligibility(row, pizzaType) {
   const explicitEligibility = firstMatchingValue(row, [
     'gets pizza',
@@ -197,6 +208,28 @@ function buildPizzaEligibility(row, pizzaType) {
   return true;
 }
 
+function resolvePizzaEligibility(row, pizzaType, saturdayType, sundayType) {
+  const explicitEligibility = firstMatchingValue(row, [
+    'gets pizza',
+    'pizza eligible',
+    'eligible',
+    'has pizza',
+    'bekommt pizza',
+    'pizza ja nein'
+  ]);
+  const parsedExplicit = parseBooleanLike(explicitEligibility);
+
+  if (parsedExplicit !== null) {
+    return parsedExplicit;
+  }
+
+  if (saturdayType || sundayType) {
+    return true;
+  }
+
+  return buildPizzaEligibility(row, pizzaType);
+}
+
 function buildPizzaEntriesFromRows(rows) {
   return rows
     .map(({ rowIndex, row }) => {
@@ -205,14 +238,28 @@ function buildPizzaEntriesFromRows(rows) {
         return null;
       }
 
-      const pizzaType = buildPizzaType(row);
-      const getsPizza = buildPizzaEligibility(row, pizzaType);
+      const saturdayType = buildPizzaDayType(row, [
+        'samstag',
+        'saturday',
+        'samstag pizza',
+        'saturday pizza'
+      ]);
+      const sundayType = buildPizzaDayType(row, [
+        'sonntag',
+        'sunday',
+        'sonntag pizza',
+        'sunday pizza'
+      ]);
+      const pizzaType = buildPizzaType(row) || [saturdayType, sundayType].filter(Boolean).join(' / ');
+      const getsPizza = resolvePizzaEligibility(row, pizzaType, saturdayType, sundayType);
 
       return {
         id: `${rowIndex}-${slugify(name)}`,
         name,
         pizzaType,
-        getsPizza
+        getsPizza,
+        saturdayType,
+        sundayType
       };
     })
     .filter(Boolean);
@@ -257,8 +304,16 @@ function validatePizzaList(pizzaList) {
     return {
       id: typeof entry.id === 'string' && entry.id ? entry.id : `${index + 1}-${slugify(entry.name)}`,
       name: entry.name.trim(),
-      pizzaType: String(entry.pizzaType ?? entry.type ?? '').trim(),
-      getsPizza: parsedEligibility ?? true
+      pizzaType: String(
+        entry.pizzaType ??
+        entry.type ??
+        [entry.saturdayType ?? entry.samstag ?? entry.saturday, entry.sundayType ?? entry.sonntag ?? entry.sunday]
+          .filter(Boolean)
+          .join(' / ')
+      ).trim(),
+      getsPizza: parsedEligibility ?? true,
+      saturdayType: String(entry.saturdayType ?? entry.samstag ?? entry.saturday ?? '').trim(),
+      sundayType: String(entry.sundayType ?? entry.sonntag ?? entry.sunday ?? '').trim()
     };
   });
 }
@@ -365,7 +420,9 @@ export async function loadPizzaGuestsFromDeviceStorage() {
         id: matchedGuest?.id ?? `pizza-${entry.id}`,
         name: matchedGuest?.name ?? entry.name,
         group: matchedGuest?.group ?? '',
-        pizzaType: entry.pizzaType
+        pizzaType: entry.pizzaType,
+        saturdayType: entry.saturdayType,
+        sundayType: entry.sundayType
       };
     });
 }

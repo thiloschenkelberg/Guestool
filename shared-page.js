@@ -118,6 +118,9 @@ export async function createGuestPage(config) {
   function createRow(guest) {
     const row = document.createElement('article');
     row.className = 'guestRow';
+    if (config.rowClassName) {
+      row.classList.add(config.rowClassName);
+    }
 
     const info = document.createElement('div');
 
@@ -127,32 +130,61 @@ export async function createGuestPage(config) {
 
     const meta = document.createElement('div');
     meta.className = 'guestMeta';
-    meta.textContent = typeof config.getMetaText === 'function'
+    const metaText = typeof config.getMetaText === 'function'
       ? config.getMetaText(guest)
       : (guest.group || 'Guest list');
+    meta.textContent = metaText;
+    meta.style.display = metaText ? '' : 'none';
 
     info.append(name, meta);
 
     const actions = document.createElement('div');
     actions.className = 'actions';
+    if (config.actionsClassName) {
+      actions.classList.add(config.actionsClassName);
+    }
 
     fields.forEach(field => {
+      const fieldWrapper = document.createElement('div');
+      fieldWrapper.className = 'fieldCell';
+
       const label = document.createElement('label');
       label.className = 'control';
+
+      const disabled = typeof field.isDisabled === 'function'
+        ? Boolean(field.isDisabled(guest))
+        : Boolean(field.disabled);
+      if (disabled) {
+        label.classList.add('controlDisabled');
+      }
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = Boolean(guest[field.key]);
+      checkbox.disabled = disabled;
       checkbox.addEventListener('change', () => updateGuest(guest.id, field.key, checkbox.checked));
 
       const text = document.createElement('span');
-      text.textContent = field.label;
+      text.textContent = typeof field.getLabel === 'function'
+        ? field.getLabel(guest)
+        : field.label;
 
       label.append(checkbox, text);
-      actions.append(label);
+      fieldWrapper.append(label);
+
+      if (config.renderFieldsAsColumns) {
+        row.append(fieldWrapper);
+      } else {
+        actions.append(fieldWrapper);
+      }
     });
 
-    row.append(info, actions);
+    row.prepend(info);
+
+    if (!config.renderFieldsAsColumns) {
+      row.append(actions);
+    }
+
     return row;
   }
 
@@ -174,6 +206,20 @@ export async function createGuestPage(config) {
     }
 
     elements.listHeader.innerHTML = '';
+    if (config.headerClassName) {
+      elements.listHeader.className = `listHeader ${config.headerClassName}`;
+    } else {
+      elements.listHeader.className = 'listHeader';
+    }
+
+    if (Array.isArray(config.headerColumns) && config.headerColumns.length > 0) {
+      config.headerColumns.forEach(column => {
+        const cell = document.createElement('div');
+        cell.textContent = column;
+        elements.listHeader.append(cell);
+      });
+      return;
+    }
 
     const guestHeader = document.createElement('div');
     guestHeader.textContent = 'Guest';

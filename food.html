@@ -37,7 +37,8 @@
 
       <section id="listHeader" class="listHeader">
         <div>Guest</div>
-        <div>Status</div>
+        <div>Saturday</div>
+        <div>Sunday</div>
       </section>
 
       <section id="guestList" class="list" aria-live="polite"></section>
@@ -57,15 +58,24 @@
       loadGuests: loadPizzaGuestsFromDeviceStorage,
       storageKey: 'guest-tool-pizza-v1',
       fields: [
-        { key: 'pizzaSaturday', label: 'Saturday' },
-        { key: 'pizzaSunday', label: 'Sunday' }
+        {
+          key: 'pizzaSaturday',
+          getLabel: guest => guest.saturdayType || 'No pizza',
+          isDisabled: guest => !guest.saturdayType
+        },
+        {
+          key: 'pizzaSunday',
+          getLabel: guest => guest.sundayType || 'No pizza',
+          isDisabled: guest => !guest.sundayType
+        }
       ],
+      headerColumns: ['Guest', 'Saturday', 'Sunday'],
+      headerClassName: 'listHeaderThree',
+      rowClassName: 'guestRowThree',
+      renderFieldsAsColumns: true,
       statusHeaderLabel: 'Pizza Status',
       isDone: guest => guest.pizzaSaturday || guest.pizzaSunday,
-      getMetaText: guest => {
-        const details = [guest.pizzaType, guest.group].filter(Boolean);
-        return details.join(' • ') || 'Pizza guest';
-      },
+      getMetaText: guest => guest.group || '',
       loadErrorMessage: 'No pizza list is loaded on this device yet. Go to Home and choose a CSV or JSON pizza list first.'
     });
   </script>
